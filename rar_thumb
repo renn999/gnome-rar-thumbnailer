@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+FONTFILE=''
+TMPDIR="/tmp"
+TEMPFILE1=$(mktemp -d -p $TMPDIR)
+
+INPUTFILE="$1"
+OUTPUTFILE="$2"
+
+#echo "%i:" $1 >> $HOME/.thumbnails/rar_thumb.info
+#echo "%o:" $2 >> $HOME/.thumbnails/rar_thumb.info
+#echo "%u:" $3 >> $HOME/.thumbnails/rar_thumb.info
+#echo "%s:" $4 >> $HOME/.thumbnails/rar_thumb.info
+
+FILENUM=`7z l "$INPUTFILE" | tail -1 | sed -e 's/^.* \([0-9]*\) files, \([0-9]*\) folders/D\2 F\1/'`
+HAVEEXE=`7z l "$INPUTFILE" | egrep -i '.*\.(exe)$'|wc -l`
+EXTRACTFILE=`7z l -slt "$INPUTFILE" | egrep -i -e'Path = .*\.(gif)$' -e'Path = .*\.(jpg|png|bmp)$' | sort --field-separator="/" -k2 | sed '2,$d' | sed 's/^ *Path = //gi'`
+if [ `echo $EXTRACTFILE | wc -L` \> 0 ];then
+
+7z x "$INPUTFILE" "$EXTRACTFILE" -o"$TEMPFILE1/" -w"$TMPDIR"
+
+convert "$TEMPFILE1/$EXTRACTFILE" -resize 128x116 -gravity center -background white -extent 128x116 "$TEMPFILE1/RESIZE.png"
+IMAGESIZE_W=`identify -format "%wx%h $FILENUM" "$TEMPFILE1/$EXTRACTFILE"`
+
+if [ $HAVEEXE != 0 ];then
+  IMAGESIZE_W=`echo "E" $IMAGESIZE_W`
+else
+	IMAGESIZE_W=`echo "-" $IMAGESIZE_W`
+fi
+
+convert "$TEMPFILE1/RESIZE.png" -background white -extent 128x128 "$TEMPFILE1/RESIZE.1.png"
+convert -font $FONTFILE -gravity center -fill black -pointsize 16 -draw "text 0,$(( (128 - 8) /2 )) \"$IMAGESIZE_W\"" "$TEMPFILE1/RESIZE.1.png" "$TEMPFILE1/RESIZE.2.png"
+
+mv "$TEMPFILE1/RESIZE.2.png" "$OUTPUTFILE"
+fi
+rm -r "$TEMPFILE1/"
